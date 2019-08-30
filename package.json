@@ -22,6 +22,7 @@
     "url": "https://github.com/hubotio/hubot-redis-brain/issues"
   },
   "dependencies": {
+    "deepmerge": "^4.0.0",
     "redis": "^2.7.1"
   },
   "peerDependencies": {

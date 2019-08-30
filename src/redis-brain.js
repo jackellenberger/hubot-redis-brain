@@ -15,6 +15,7 @@
 
 const Url = require('url')
 const Redis = require('redis')
+const deepMerge = require('deepmerge')
 
 module.exports = function (robot) {
   let client, prefix
@@ -41,6 +42,13 @@ module.exports = function (robot) {
     // reconnect after
     robot.logger.error('Retrying in', options.attempt * 100);
     return Math.min(options.attempt * 100, 3000);
+  }
+
+  robot.brain.deepMergeData = (data) => {
+    robot.logger.info(`merging robot.brain.data ${robot.brain.data._private.length} and data ${data.length}`)
+    robot.brain.data._private = deepMerge(data, robot.brain.data._private,)
+    robot.brain.mergeData({}) //ensure users in the grain are still user objects
+    robot.logger.info(`brain is now ${robot.brain.data.toString().length}`)
   }
 
   if (redisUrlEnv) {
@@ -78,16 +86,15 @@ module.exports = function (robot) {
 
   const getData = (cb) => {
     robot.logger.info('hubot-redis-brain getData');
-    client.get(`${prefix}:storage`, function (err, reply) {
+    client.get(`${prefix}:brain`, function (err, reply) {
       if (err) {
         robot.logger.error(`unable to get ${prefix}:storage: `, err);
         cb(err, null)
       } else if (reply) {
-        robot.brain.data._private["brainGetTimestamp"] = Date.now()
         robot.logger.info(`hubot-redis-brain: Data for ${prefix} brain retrieved from Redis ${reply.toString().length}`)
-        robot.brain.mergeData(JSON.parse(reply.toString()))
+        robot.brain.deepMergeData(JSON.parse(reply.toString()))
         robot.logger.info(`keys from redis: ${Object.keys(JSON.parse(reply.toString()))}`)
-        robot.logger.info(`_private from redis: ${Object.keys(JSON.parse(reply.toString())._private)}`)
+        robot.logger.info(`_private from redis: ${Object.keys(JSON.parse(reply.toString()))}`)
         cb(null, robot.brain.data)
       } else {
         robot.logger.info(`hubot-redis-brain: Unable to get brain from redis`)
@@ -141,7 +148,7 @@ module.exports = function (robot) {
         robot.logger.error(`Not saving brain cause of: ${err}`)
       } else {
         robot.logger.info(`hubot-redis-brain: privates: ${robot.brain.data._private.toString().length}`)
-        client.set(`${prefix}:storage`, JSON.stringify(data))
+        client.set(`${prefix}:brain`, JSON.stringify(robot.brain.data._private))
       }
     })
   })
