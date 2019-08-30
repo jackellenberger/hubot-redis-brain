@@ -24,18 +24,22 @@ module.exports = function (robot) {
     if (options.error && options.error.code === 'ECONNREFUSED') {
       // End reconnecting on a specific error and flush all commands with
       // a individual error
+      robot.logger.error('The server refused the connection');
       return new Error('The server refused the connection');
     }
     if (options.total_retry_time > 1000 * 60 * 60) {
       // End reconnecting after a specific timeout and flush all commands
       // with a individual error
+      robot.logger.error('Retry time exhausted');
       return new Error('Retry time exhausted');
     }
     if (options.attempt > 10) {
       // End reconnecting with built in error
+      robot.logger.error('Too many retry attempts');
       return undefined;
     }
     // reconnect after
+    robot.logger.error('Retrying in', options.attempt * 100);
     return Math.min(options.attempt * 100, 3000);
   }
 
@@ -73,8 +77,10 @@ module.exports = function (robot) {
   robot.brain.setAutoSave(false)
 
   const getData = () =>
+    robot.logger.info('hubot-redis-brain getData', options.attempt * 100);
     client.get(`${prefix}:storage`, function (err, reply) {
       if (err) {
+        robot.logger.error(`unable to get ${prefix}:storage: `, err);
         throw err
       } else if (reply) {
         robot.logger.info(`hubot-redis-brain: Data for ${prefix} brain retrieved from Redis`)
@@ -101,6 +107,7 @@ module.exports = function (robot) {
   }
 
   client.on('error', function (err) {
+    robot.logger.error(`hubot-redis-brain ERROR ${err}`)
     if (/ECONNREFUSED/.test(err.message)) {
 
     } else {
@@ -116,6 +123,7 @@ module.exports = function (robot) {
   robot.brain.on('save', (data) => {
     if (!data) {
       data = {}
+      robot.logger.warn(`hubot-redis-brain WARNING setting {} data`)
     }
     client.set(`${prefix}:storage`, JSON.stringify(data))
   })
