@@ -20,6 +20,24 @@ module.exports = function (robot) {
   let client, prefix
   const redisUrlEnv = getRedisEnv()
   const redisUrl = process.env[redisUrlEnv] || 'redis://localhost:6379'
+  const redisRetryStrategy = (options) => {
+    if (options.error && options.error.code === 'ECONNREFUSED') {
+      // End reconnecting on a specific error and flush all commands with
+      // a individual error
+      return new Error('The server refused the connection');
+    }
+    if (options.total_retry_time > 1000 * 60 * 60) {
+      // End reconnecting after a specific timeout and flush all commands
+      // with a individual error
+      return new Error('Retry time exhausted');
+    }
+    if (options.attempt > 10) {
+      // End reconnecting with built in error
+      return undefined;
+    }
+    // reconnect after
+    return Math.min(options.attempt * 100, 3000);
+  }
 
   if (redisUrlEnv) {
     robot.logger.info(`hubot-redis-brain: Discovered redis from ${redisUrlEnv} environment variable`)
@@ -34,12 +52,21 @@ module.exports = function (robot) {
   const info = Url.parse(redisUrl)
 
   if (info.hostname === '') {
-    client = Redis.createClient(info.pathname)
+    client = Redis.createClient(info.pathname, {
+      retry_strategy: redisRetryStrategy
+    })
     prefix = (info.query ? info.query.toString() : undefined) || 'hubot'
   } else {
-    client = (info.auth || process.env.REDIS_NO_CHECK)
-              ? Redis.createClient(info.port, info.hostname, {no_ready_check: true})
-            : Redis.createClient(info.port, info.hostname)
+    client = if (info.auth || process.env.REDIS_NO_CHECK) {
+      Redis.createClient(info.port, info.hostname, {
+        no_ready_check: true,
+        retry_strategy: redisRetryStrategy
+      })
+    } else {
+      Redis.createClient(info.port, info.hostname, {
+        retry_strategy: redisRetryStrategy
+      })
+    }
     prefix = (info.path ? info.path.replace('/', '') : undefined) || 'hubot'
   }
 
