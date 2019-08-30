@@ -133,12 +133,12 @@ module.exports = function (robot) {
     }
 
     robot.logger.info(`hubot-redis-brain: privates: ${robot.brain.data._private.toString().length}`)
-    if (robot.brain.data._private["brainSetTimestamp"] || robot.brain.data._private["brainGetTimestamp"]) {
+    // if (robot.brain.data._private["brainSetTimestamp"] || robot.brain.data._private["brainGetTimestamp"]) {
       client.set(`${prefix}:storage`, JSON.stringify(data))
-    } else {
+    // } else {
       robot.logger.warning('hubot-redis-brain: Not saving an empty brain')
       // Don't bother saving a brain where nothing has been set.
-    }
+    // }
   })
 
   robot.brain.on('close', () => client.quit())
