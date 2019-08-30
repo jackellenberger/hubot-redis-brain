@@ -83,13 +83,13 @@ module.exports = function (robot) {
         robot.logger.error(`unable to get ${prefix}:storage: `, err);
         throw err
       } else if (reply) {
-        robot.logger.info(`hubot-redis-brain: Data for ${prefix} brain retrieved from Redis`)
+        robot.logger.info(`hubot-redis-brain: Data for ${prefix} brain retrieved from Redis ${reply.toString().length}`)
         robot.brain.mergeData(JSON.parse(reply.toString()))
         robot.brain.emit('connected')
       } else {
         robot.logger.info(`hubot-redis-brain: Initializing new data for ${prefix} brain`)
-        robot.brain.mergeData({})
-        robot.brain.emit('connected')
+        // robot.brain.mergeData({})
+        // robot.brain.emit('connected')
       }
 
       robot.brain.setAutoSave(true)
