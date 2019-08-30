@@ -76,27 +76,27 @@ module.exports = function (robot) {
 
   robot.brain.setAutoSave(false)
 
-  const getData = () =>
+  const getData = (cb) => {
     robot.logger.info('hubot-redis-brain getData');
     client.get(`${prefix}:storage`, function (err, reply) {
       if (err) {
         robot.logger.error(`unable to get ${prefix}:storage: `, err);
-        throw err
+        cb(err, null)
       } else if (reply) {
         robot.brain.data._private["brainGetTimestamp"] = Date.now()
         robot.logger.info(`hubot-redis-brain: Data for ${prefix} brain retrieved from Redis ${reply.toString().length}`)
         robot.brain.mergeData(JSON.parse(reply.toString()))
         robot.logger.info(`keys from redis: ${Object.keys(JSON.parse(reply.toString()))}`)
         robot.logger.info(`_private from redis: ${Object.keys(JSON.parse(reply.toString())._private)}`)
-        robot.brain.emit('connected')
+        cb(null, robot.brain.data)
       } else {
-        robot.logger.info(`hubot-redis-brain: Initializing new data for ${prefix} brain`)
-        // robot.brain.mergeData({})
-        // robot.brain.emit('connected')
+        robot.logger.info(`hubot-redis-brain: Unable to get brain from redis`)
+        cb(null, robot.brain.data)
       }
-
+      robot.brain.emit('connected')
       robot.brain.setAutoSave(true)
     })
+  }
 
   if (info.auth) {
     client.auth(info.auth.split(':')[1], function (err) {
@@ -105,7 +105,10 @@ module.exports = function (robot) {
       }
 
       robot.logger.info('hubot-redis-brain: Successfully authenticated to Redis')
-      getData()
+      getData((err, data) => {
+        if (err)
+          robot.logger.error(err)
+      })
     })
   }
 
@@ -120,25 +123,27 @@ module.exports = function (robot) {
 
   client.on('connect', function () {
     robot.logger.debug('hubot-redis-brain: Successfully connected to Redis')
-    if (!info.auth) { getData() }
+    if (!info.auth) { 
+      getData((err, data) => {
+        if (err)
+          robot.logger.error(err)
+      })
+    }
   })
 
   robot.brain.on('loaded', (data) => {
-    robot.logger.info(`LOADED DATA ${data.toString().length}`)
+    robot.logger.info(`LOADED DATA ${data.toString()}`)
   })
 
   robot.brain.on('save', (data) => {
-    if (!data) {
-      data = {}
-    }
-
-    robot.logger.info(`hubot-redis-brain: privates: ${robot.brain.data._private.toString().length}`)
-    // if (robot.brain.data._private["brainSetTimestamp"] || robot.brain.data._private["brainGetTimestamp"]) {
-      client.set(`${prefix}:storage`, JSON.stringify(data))
-    // } else {
-      robot.logger.warning('hubot-redis-brain: Not saving an empty brain')
-      // Don't bother saving a brain where nothing has been set.
-    // }
+    getData((err, data) => {
+      if (err) {
+        robot.logger.error(`Not saving brain cause of: ${err}`)
+      } else {
+        robot.logger.info(`hubot-redis-brain: privates: ${robot.brain.data._private.toString().length}`)
+        client.set(`${prefix}:storage`, JSON.stringify(data))
+      }
+    })
   })
 
   robot.brain.on('close', () => client.quit())
