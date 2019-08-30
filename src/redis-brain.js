@@ -77,7 +77,7 @@ module.exports = function (robot) {
   robot.brain.setAutoSave(false)
 
   const getData = () =>
-    robot.logger.info('hubot-redis-brain getData', options.attempt * 100);
+    robot.logger.info('hubot-redis-brain getData');
     client.get(`${prefix}:storage`, function (err, reply) {
       if (err) {
         robot.logger.error(`unable to get ${prefix}:storage: `, err);
