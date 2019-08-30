@@ -61,15 +61,15 @@ module.exports = function (robot) {
     })
     prefix = (info.query ? info.query.toString() : undefined) || 'hubot'
   } else {
-    client = if (info.auth || process.env.REDIS_NO_CHECK) {
-      Redis.createClient(info.port, info.hostname, {
+    if (info.auth || process.env.REDIS_NO_CHECK) {
+      client = Redis.createClient(info.port, info.hostname, {
         no_ready_check: true,
         retry_strategy: redisRetryStrategy
-      })
+      });
     } else {
-      Redis.createClient(info.port, info.hostname, {
+      client = Redis.createClient(info.port, info.hostname, {
         retry_strategy: redisRetryStrategy
-      })
+      });
     }
     prefix = (info.path ? info.path.replace('/', '') : undefined) || 'hubot'
   }
